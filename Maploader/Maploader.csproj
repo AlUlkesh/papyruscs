@@ -16,12 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="LevelDB.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="zlibwapi.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
+      <!-- Removed LevelDB.dll and zlibwapi.dll to avoid duplicate publish conflicts -->
   </ItemGroup>
 
   <ItemGroup>
@@ -73,6 +68,12 @@
     </None>
     <None Update="x86\libwebp.dll">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\PapyrusCs\texture_mappings.json" Link="texture_mappings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

@@ -262,3 +262,10 @@ __pycache__/
 /PapyrusCs/UnicornClicker2.db
 /PapyrusCs/UnicornClicker.db
 /PapyrusCs/Properties/PublishProfiles/FolderProfile.pubxml
+
+# Visual Studio Code
+.vscode/
+
+# Ignore bin and obj directories at any depth
+**/bin/
+**/obj/

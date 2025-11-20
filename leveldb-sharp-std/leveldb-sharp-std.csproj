@@ -36,8 +36,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="leveldb-sharp-std.dll.config">
+    <None Include="leveldb-sharp-std.dll.config">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 

@@ -9,10 +9,7 @@ namespace Maploader.Renderer.Texture
 {
     public class TextureFinder<TImage> where TImage : class
     {
-        /// <summary>
-        /// Returns if a texture is transparent
-        /// </summary>
-        public Dictionary<string, bool> TransparentBlocks { get; } = new Dictionary<string, bool>()
+        private static readonly Dictionary<string, bool> _transparentBlocks = new Dictionary<string, bool>()
         {
             {"minecraft:tallgrass", true},
             {"minecraft:waterlily", true},
@@ -83,6 +80,14 @@ namespace Maploader.Renderer.Texture
             {"minecraft:bamboo", true },
             {"minecraft:leaves", true },
             {"minecraft:leaves2", true },
+            {"minecraft:oak_leaves", true },
+            {"minecraft:spruce_leaves", true },
+            {"minecraft:birch_leaves", true },
+            {"minecraft:jungle_leaves", true },
+            {"minecraft:acacia_leaves", true },
+            {"minecraft:dark_oak_leaves", true },
+            {"minecraft:cherry_leaves", true },
+            {"minecraft:pale_oak_leaves", true },
 
             {"minecraft:wooden_door", true },
             {"minecraft:spruce_door", true },
@@ -265,20 +270,36 @@ namespace Maploader.Renderer.Texture
             {"minecraft:sticky_piston_arm_collision", true},
         };
 
+        /// <summary>
+        /// Returns if a texture is transparent
+        /// </summary>
+        public Dictionary<string, bool> TransparentBlocks => _transparentBlocks;
+
         private readonly Dictionary<string, Texture> texturesJson;
         private readonly string path;
         private readonly IGraphicsApi<TImage> graphics;
+        private readonly HashSet<string> _filesOnDisk;
 
         public TextureFinder(Dictionary<string, Texture> texturesJson, string path, IGraphicsApi<TImage> graphics)
         {
             this.texturesJson = texturesJson;
             this.path = path;
             this.graphics = graphics;
+
+            _filesOnDisk = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (Directory.Exists(path))
+            {
+                foreach (var file in Directory.EnumerateFiles(path, "*", SearchOption.AllDirectories))
+                {
+                    _filesOnDisk.Add(Path.GetFullPath(file));
+                }
+            }
         }
 
         public TextureStack FindTexturePath(string name, Dictionary<string, Object> data, int x, int z, int y)
         {
-            name = name.Replace("minecraft:", "");
+            if (name.StartsWith("minecraft:"))
+                name = name.Substring(10);
 
             var newTexture = GetSubstitution(name, data, x, z, y);
 
@@ -286,12 +307,15 @@ namespace Maploader.Renderer.Texture
             {
                 return newTexture;
             }
-            if (texturesJson.ContainsKey(name))
+
+            name = TextureMapper.Map(name);
+
+            var texture = GetTexture(name, data);
+            if (texture != null)
             {
-                return GetTexture(name, data);
+                return texture;
             }
             return null;
-
         }
 
 
@@ -335,7 +359,7 @@ namespace Maploader.Renderer.Texture
                 {
                     // TODO: fix bed colours
                     int headBit = (int)data.GetValueOrDefault("head_piece_bit", 0);
-                    RotateFlip rot = RotateFromDirection(((int)data["direction"] + 3) % 4);
+                    RotateFlip rot = RotateFromDirection(((int)data.GetValueOrDefault("direction", 0) + 3) % 4);
                     return CreateTexture(headBit != 0
                                     ? "textures/blocks/bed_head_top"
                                     : "textures/blocks/bed_feet_top")
@@ -630,6 +654,8 @@ namespace Maploader.Renderer.Texture
                 case "farmland":
                     return GetTexture("farmland", (int)data.GetValueOrDefault("moisturized_amount‌", 0) >= 1 ? 0 : 1);
                 case "grass":
+                    return GetTexture("grass_carried_top", data);
+                case "grass_block":
                     return GetTexture("grass_carried_top", data);
                 case "seagrass":
                     return GetTexture("seagrass_carried", data);
@@ -1605,7 +1631,7 @@ namespace Maploader.Renderer.Texture
         }
         private TextureStack RenderButton(string texture, Dictionary<string, Object> data)
         {
-            int direction = (int)data["facing_direction"];
+            int direction = (int)data.GetValueOrDefault("facing_direction", 0);
             var t = GetTexture(texture, 0);
             int thickness = (int)data.GetValueOrDefault("button_pressed_bit", 0) == 0 ? 2 : 1;
             switch (direction)
@@ -1643,8 +1669,8 @@ namespace Maploader.Renderer.Texture
         }
         private TextureStack RenderFenceGate (string texture, Dictionary<string, Object> data)
         {
-            int direction = (int)data["direction"];
-            int open_bit = (int)data["open_bit"];
+            int direction = (int)data.GetValueOrDefault("direction", 0);
+            int open_bit = (int)data.GetValueOrDefault("open_bit", 0);
 
             if (open_bit != 0)
             {
@@ -1771,7 +1797,10 @@ namespace Maploader.Renderer.Texture
             {
                 case "up_north_south":
                 case "down_north_south":
+                   
                     rot = (int)data.GetValueOrDefault("open_bit", 0) == 1
+                       
+                       
                         ? RotateFlip.RotateNoneFlipNone
                         : RotateFlip.Rotate180FlipNone;
                     cobbletrans = new TextureTranslation(new Rect(5, 4, 6, 8));
@@ -1936,7 +1965,7 @@ namespace Maploader.Renderer.Texture
                 }
 
                 head = head.Translate(new Rect(0,0,4,4), new Rect(6,12,4,4));
-                TextureStack body = GetTexture(filename, 0).Translate(new Rect(0,4,2,12), new Rect(7,4,2,12));
+                TextureStack body = GetTexture(filename).Translate(new Rect(0,4,2,12), new Rect(7,4,2,12));
                 switch(dir)
                 {
                     case 2:
@@ -2241,11 +2270,11 @@ namespace Maploader.Renderer.Texture
 
         private RotateFlip RotateFromDirection(Dictionary<string, Object> data, int offset)
         {
-            return RotateFromDirection((int)data["direction"] + offset);
+            return RotateFromDirection((int)data.GetValueOrDefault("direction", 0) + offset);
         }
         private RotateFlip RotateFromDirection(Dictionary<string, Object> data)
         {
-            return RotateFromDirection((int)data["direction"]);
+            return RotateFromDirection((int)data.GetValueOrDefault("direction", 0));
         }
         private RotateFlip RotateFromDirection(int direction)
         {
@@ -2511,82 +2540,138 @@ namespace Maploader.Renderer.Texture
 
         private TextureStack GetTexture(string name, int data = 0, TextureTranslation translation = null, RotateFlip rot = RotateFlip.RotateNoneFlipNone)
         {
-            var dictData = new Dictionary<string, Object>();
-            dictData.Add("val", data);
-            return GetTexture(name, dictData, translation, rot);
-        }
-        private TextureStack GetTexture(string name, Dictionary<string, Object> data, TextureTranslation translation = null, RotateFlip rot = RotateFlip.RotateNoneFlipNone)
-        {
-            string texturePath = null;
-            if (texturesJson.ContainsKey(name))
-            {
-                var texture = texturesJson[name];
-                texturePath = texture.Subtextures.First().Path;
-                foreach(var blockProperties in data)
-                {
-                    if(blockProperties.Key == "val")
-                    {
-                        int intValue = (int)blockProperties.Value;
-                        try
-                        {
-                            texturePath = texture.Subtextures[intValue].Path;
-                        }
-                        catch{}
-                    }
-                    if(blockProperties.Key == "color")
-                    {
+            name = TextureMapper.Map(name);
 
-                        int colorIndex = ColorIndexes.First().Value;
-                        try
-                        {
-                            string color = (string)data["color"];
-                            colorIndex = ColorIndexes[color];
-                            texturePath = texture.Subtextures[colorIndex].Path;
-                        }
-                        catch
-                        {
-                            Console.WriteLine("Cannot find color for " + name);
-                        }
-                    }
-                    if(blockProperties.Key == "wall_block_type")
+            if (texturesJson.TryGetValue(name, out var texture))
+            {
+                string texturePath = texture.Subtextures.First().Path;
+                if (data > 0 && data < texture.Subtextures.Count)
+                {
+                    texturePath = texture.Subtextures[data].Path;
+                }
+                return new TextureStack(texturePath, translation, rot);
+            }
+
+            string[] extensions = { ".png", ".tga" };
+            string[] subfolders = { "", "blocks" };
+
+            foreach (var subfolder in subfolders)
+            {
+                foreach (var ext in extensions)
+                {
+                    string relativePath = string.IsNullOrEmpty(subfolder) ? name : Path.Combine(subfolder, name);
+                    string fullPath = Path.GetFullPath(Path.Combine(path, relativePath + ext));
+                    if (_filesOnDisk.Contains(fullPath))
                     {
-                        int wallBlockIndex = CobblestoneWallIndexes.First().Value;
-                        try
-                        {
-                            string wallBlock = (string)data["wall_block_type"];
-                            wallBlockIndex = CobblestoneWallIndexes[wallBlock];
-                            texturePath = texture.Subtextures[wallBlockIndex].Path;
-                        }
-                        catch
-                        {
-                            Console.WriteLine("Cannot find wall type for " + name);
-                        }
-                    }
-                    if(blockProperties.Key == "facing_direction")
-                    {
-                        int direction = (int)data["facing_direction"];
-                        switch (direction)
-                        {
-                            case 2:
-                                rot = RotateFlip.Rotate180FlipNone;
-                                break;
-                            case 3:
-                                rot = RotateFlip.RotateNoneFlipNone;
-                                break;
-                            case 4:
-                                rot = RotateFlip.Rotate90FlipNone;
-                                break;
-                            case 5:
-                                rot = RotateFlip.Rotate270FlipNone;
-                                break;
-                        }
+                        string texturePath = "textures/" + relativePath.Replace("\\", "/");
+                        return new TextureStack(texturePath, translation, rot);
                     }
                 }
             }
 
-            if (texturePath == null)
-                return null;
-            return new TextureStack(texturePath, translation, rot);
+            return null;
+        }
+
+        private TextureStack GetTexture(string name, Dictionary<string, Object> data, TextureTranslation translation = null, RotateFlip rot = RotateFlip.RotateNoneFlipNone)
+        {
+            name = TextureMapper.Map(name);
+
+            if (texturesJson.TryGetValue(name, out var texture))
+            {
+                string texturePath = texture.Subtextures.First().Path;
+
+                if (data.TryGetValue("val", out var valObj) && valObj is int val)
+                {
+                    if (val >= 0 && val < texture.Subtextures.Count)
+                        texturePath = texture.Subtextures[val].Path;
+                }
+
+                if (data.TryGetValue("color", out var colorObj) && colorObj is string color)
+                {
+                    if (ColorIndexes.TryGetValue(color, out int colorIndex))
+                    {
+                        if (colorIndex >= 0 && colorIndex < texture.Subtextures.Count)
+                            texturePath = texture.Subtextures[colorIndex].Path;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Cannot find color for " + name);
+                    }
+                }
+
+                if (data.TryGetValue("wall_block_type", out var wallObj) && wallObj is string wallBlock)
+                {
+                    if (CobblestoneWallIndexes.TryGetValue(wallBlock, out int wallBlockIndex))
+                    {
+                        if (wallBlockIndex >= 0 && wallBlockIndex < texture.Subtextures.Count)
+                            texturePath = texture.Subtextures[wallBlockIndex].Path;
+                    }
+                    else
+                    {
+                        Console.WriteLine("Cannot find wall type for " + name);
+                    }
+                }
+
+                if (data.TryGetValue("facing_direction", out var dirObj) && dirObj is int direction)
+                {
+                    switch (direction)
+                    {
+                        case 2:
+                            rot = RotateFlip.Rotate180FlipNone;
+                            break;
+                        case 3:
+                            rot = RotateFlip.RotateNoneFlipNone;
+                            break;
+                        case 4:
+                            rot = RotateFlip.Rotate90FlipNone;
+                            break;
+                        case 5:
+                            rot = RotateFlip.Rotate270FlipNone;
+                            break;
+                    }
+                }
+
+                return new TextureStack(texturePath, translation, rot);
+            }
+
+            string[] extensions = { ".png", ".tga" };
+            string[] subfolders = { "", "blocks" };
+
+            foreach (var subfolder in subfolders)
+            {
+                foreach (var ext in extensions)
+                {
+                    string relativePath = string.IsNullOrEmpty(subfolder) ? name : Path.Combine(subfolder, name);
+                    string fullPath = Path.GetFullPath(Path.Combine(path, relativePath + ext));
+                    if (_filesOnDisk.Contains(fullPath))
+                    {
+                        string texturePath = "textures/" + relativePath.Replace("\\", "/");
+
+                        if (data.TryGetValue("facing_direction", out var dirObj) && dirObj is int direction)
+                        {
+                            switch (direction)
+                            {
+                                case 2:
+                                    rot = RotateFlip.Rotate180FlipNone;
+                                    break;
+                                case 3:
+                                    rot = RotateFlip.RotateNoneFlipNone;
+                                    break;
+                                case 4:
+                                    rot = RotateFlip.Rotate90FlipNone;
+                                    break;
+                                case 5:
+                                    rot = RotateFlip.Rotate270FlipNone;
+                                    break;
+                            }
+                        }
+
+                        return new TextureStack(texturePath, translation, rot);
+                    }
+                }
+            }
+
+            return null;
         }
 
         private int LegacyGetOldDataValue (Dictionary<string, Object> data)

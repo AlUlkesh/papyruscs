@@ -2,10 +2,11 @@
 using Maploader.Renderer;
 using Maploader.Renderer.Imaging;
 using Maploader.Renderer.Texture;
+using Maploader.Core;
 
 namespace PapyrusAlgorithms.Strategies
 {
-    class RendererCombi<TImage> where TImage : class
+    class RendererCombi<TImage> : IResettable where TImage : class
     {
         public TextureFinder<TImage> Finder { get; }
         public ChunkRenderer<TImage> ChunkRenderer { get; }
@@ -14,6 +15,11 @@ namespace PapyrusAlgorithms.Strategies
         {
             Finder = new TextureFinder<TImage>(textureDictionary, texturePath, graphics);
             ChunkRenderer = new ChunkRenderer<TImage>(Finder, graphics, renderSettings);
+        }
+
+        public void Reset()
+        {
+            ChunkRenderer.Reset();
         }
     }
 }

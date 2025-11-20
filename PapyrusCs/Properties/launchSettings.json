@@ -2,6 +2,7 @@
   "profiles": {
     "PapyrusCs": {
       "commandName": "Project",
+      "commandLineArgs": "--threads 16",
       "workingDirectory": "c:\\temp"
     }
   }

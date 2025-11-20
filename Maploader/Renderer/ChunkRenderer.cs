@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using JetBrains.Annotations;
 using Maploader.Extensions;
@@ -27,6 +28,34 @@ namespace Maploader.Renderer
         }
 
         public List<string> MissingTextures { get; } = new List<string>();
+
+        public static string MissingTexturesLogFile = "missing_textures.txt";
+        private static readonly object _logLock = new object();
+        private static readonly HashSet<string> _loggedKeys = new HashSet<string>();
+
+        private void LogMissingTexture(string message, string key)
+        {
+            if (string.IsNullOrEmpty(MissingTexturesLogFile)) return;
+            lock (_logLock)
+            {
+                if (key != null)
+                {
+                    if (_loggedKeys.Contains(key)) return;
+                    _loggedKeys.Add(key);
+                }
+
+                try
+                {
+                    File.AppendAllText(MissingTexturesLogFile, message + Environment.NewLine);
+                }
+                catch { }
+            }
+        }
+
+        public void Reset()
+        {
+            MissingTextures.Clear();
+        }
 
         private Brillouin b;
 
@@ -259,8 +288,10 @@ namespace Maploader.Renderer
                         textureFinder.FindTexturePath(block.Block.Id, block.Block.Data, block.X, block.Z, block.Y);
                     if (textures == null)
                     {
-                        Console.WriteLine($"Missing Texture(2): {block.ToString().PadRight(30)}");
-                        MissingTextures.Add($"ID: {block.Block.Id}");
+                        var msg = $"Missing Texture(2): {block.ToString().PadRight(30)}";
+                        //Console.WriteLine(msg);
+                        LogMissingTexture(msg, block.Block.ToString());
+                        MissingTextures.Add(msg);
                         continue;
                     }
 
@@ -283,8 +314,10 @@ namespace Maploader.Renderer
                         }
                         else
                         {
-                            Console.WriteLine($"\nMissing Texture(1): {block.ToString().PadRight(30)} -- {texture.Filename}");
-                            MissingTextures.Add($"ID: {block.Block.Id}, {texture.Filename}");
+                            var msg = $"Missing Texture(1): {block.ToString().PadRight(30)} -- {texture.Filename}";
+                            //Console.WriteLine(msg);
+                            LogMissingTexture(msg, block.Block.ToString() + texture.Filename);
+                            MissingTextures.Add(msg);
                         }
                     }
                 }
