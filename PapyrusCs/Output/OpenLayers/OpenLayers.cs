@@ -154,7 +154,8 @@ var playersData = // # INJECT DATA HERE;";
                     globalMaxZoom = settings.First(x => x.Dimension == settings.Min(y => y.Dimension)).MaxZoom,
                     globalMinZoom = settings.First(x => x.Dimension == settings.Min(y => y.Dimension)).MinZoom,
                     tileSize = tileSize,
-                    blocksPerTile = tileSize / 16
+                    blocksPerTile = tileSize / 16,
+                    chunksPerDimension = settings.First().ChunksPerDimension
                 };
 
                 mapHtmlContext = mapHtmlContext.Replace(

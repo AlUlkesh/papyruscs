@@ -7,6 +7,7 @@
         public int globalMaxZoom;
         public int tileSize;
         public int blocksPerTile;
+        public int chunksPerDimension;
     }
 }
 

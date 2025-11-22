@@ -32,7 +32,7 @@ namespace PapyrusAlgorithms.Strategies.Dataflow
                         throw new ArgumentOutOfRangeException("TestError in SaveBitmap");
                     }*/
 
-                    SaveBitmap(initialZoomLevel, info.X, info.Z, info.Image);
+                    SaveBitmap(initialZoomLevel, info.X, info.Z, info.Image, info.BlockNames);
                     ProcessedCount++;
                     return info.Cd;
                 }
@@ -55,14 +55,22 @@ namespace PapyrusAlgorithms.Strategies.Dataflow
         }
 
 
-        private void SaveBitmap(int zoom, int x, int z, TImage b)
+        private void SaveBitmap(int zoom, int x, int z, TImage b, string[][] blockNames)
         {
             var path = Path.Combine(OutputPath, $"{zoom}", $"{x}");
             var filepath = Path.Combine(path, $"{z}.{fileFormat}");
+            var jspath = Path.Combine(path, $"{z}.js");
 
             if (!Directory.Exists(path))
                 Directory.CreateDirectory(path);
             graphics.SaveImage(b, filepath);
+
+            if (blockNames != null)
+            {
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(blockNames);
+                var content = $"papyrusBlockDataCallback('{zoom}_{x}_{z}', {json});";
+                File.WriteAllText(jspath, content);
+            }
         }
 
         public int InputCount => Block.InputCount;

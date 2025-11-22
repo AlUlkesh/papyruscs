@@ -45,6 +45,14 @@ namespace PapyrusAlgorithms.Strategies.Dataflow
 
                     var count = 0;
                     var chunkDataList = chunkDatas.ToList();
+
+                    var blocksPerTileDimension = chunksPerDimension * 16;
+                    var blockNames = new string[blocksPerTileDimension][];
+                    for (int i = 0; i < blocksPerTileDimension; i++)
+                    {
+                        blockNames[i] = new string[blocksPerTileDimension];
+                    }
+
                     foreach (var chunkData in chunkDataList)
                     {
                         var chunk = world.GetChunk(chunkData.X, chunkData.Z, chunkData);
@@ -58,7 +66,7 @@ namespace PapyrusAlgorithms.Strategies.Dataflow
                         var z = chunk.Z % chunksPerDimension;
                         if (x < 0) x += chunksPerDimension;
                         if (z < 0) z += chunksPerDimension;
-                        chunkRenderer.ChunkRenderer.RenderChunk(b, chunk, x * chunkSize, z * chunkSize);
+                        chunkRenderer.ChunkRenderer.RenderChunk(b, chunk, x * chunkSize, z * chunkSize, blockNames);
 
                         world.ChunkPool?.Return(chunk);
                         count++;
@@ -90,7 +98,8 @@ namespace PapyrusAlgorithms.Strategies.Dataflow
                         Image = b,
                         X = fx,
                         Z = fz,
-                        Cd = chunkDataList.SelectMany(x => x.SubChunks)
+                        Cd = chunkDataList.SelectMany(x => x.SubChunks),
+                        BlockNames = blockNames
                     };
                 }
                 catch (Exception ex)

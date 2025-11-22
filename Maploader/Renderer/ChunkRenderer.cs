@@ -61,7 +61,7 @@ namespace Maploader.Renderer
 
 
 
-        public void RenderChunk(TImage dest, Chunk c, int xOffset, int zOffset)
+        public void RenderChunk(TImage dest, Chunk c, int xOffset, int zOffset, string[][] blockNames = null)
         {
             var xzColumns = c.Blocks.GroupBy(x => x.Value.XZ);
             var blocksOrderedByXZ = xzColumns.OrderBy(x => x.Key.GetLeByte(0)).ThenBy(x => x.Key.GetLeByte(1));
@@ -302,6 +302,16 @@ namespace Maploader.Renderer
                         {
                             var x = xOffset + block.X * 16;
                             var z = zOffset + block.Z * 16;
+
+                            if (blockNames != null)
+                            {
+                                int bx = (xOffset / 16) + block.X;
+                                int bz = (zOffset / 16) + block.Z;
+                                if (bx >= 0 && bx < blockNames.Length && bz >= 0 && bz < blockNames[bx].Length)
+                                {
+                                    blockNames[bx][bz] = block.Block.Id;
+                                }
+                            }
 
                             if (renderSettings.RenderMode == RenderMode.Heightmap)
                             {

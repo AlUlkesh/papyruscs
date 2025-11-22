@@ -10,6 +10,7 @@ namespace PapyrusAlgorithms.Strategies
         public int X { get; set; }
         public int Z { get; set; }
         public IEnumerable<SubChunkData> Cd { get; set; }
+        public string[][] BlockNames { get; set; }
 
         public void Dispose()
         {

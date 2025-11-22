@@ -349,6 +349,106 @@
         ]
       });
 
+      var blockDataCache = {};
+      var pendingLoads = {};
+
+      window.papyrusBlockDataCallback = function(key, data) {
+          blockDataCache[key] = data;
+          if (pendingLoads[key]) {
+              pendingLoads[key].forEach(function(req) {
+                  processBlockData(req.x, req.z, key, req.callback);
+              });
+              delete pendingLoads[key];
+          }
+      };
+
+      function processBlockData(x, z, key, callback) {
+          var data = blockDataCache[key];
+          if (!data || data === "loading" || data === "error") {
+              // console.log("Data not ready for", key, data);
+              callback(null);
+              return;
+          }
+          
+          var chunksPerDimension = config.chunksPerDimension;
+          
+          var parts = key.split('_');
+          var tx = parseInt(parts[1]);
+          var tz = parseInt(parts[2]);
+          
+          var startChunkX = tx * chunksPerDimension;
+          var startChunkZ = tz * chunksPerDimension;
+          var startBlockX = startChunkX * 16;
+          var startBlockZ = startChunkZ * 16;
+
+          var localX = x - startBlockX;
+          var localZ = z - startBlockZ;
+
+          // console.log("Lookup", x, z, "in", key, "->", localX, localZ);
+
+          if (localX >= 0 && localZ >= 0 && data[localX] && data[localX][localZ]) {
+              callback(data[localX][localZ]);
+          } else {
+              // console.log("Miss at", localX, localZ);
+              callback(null);
+          }
+      }
+
+      function getBlockName(x, z, callback) {
+        var chunksPerDimension = config.chunksPerDimension;
+        
+        function getGroupedCoordinate(coord, chunkPerDimension) {
+            if (coord >= 0)
+                return Math.floor(coord / chunkPerDimension);
+            return parseInt((coord + 1) / chunkPerDimension) - 1;
+        }
+
+        var chunkX = Math.floor(x / 16);
+        var chunkZ = Math.floor(z / 16);
+
+        var tx = getGroupedCoordinate(chunkX, chunksPerDimension);
+        var tz = getGroupedCoordinate(chunkZ, chunksPerDimension);
+        var zoom = config.globalMaxZoom;
+
+        var cacheKey = zoom + "_" + tx + "_" + tz;
+
+        if (blockDataCache[cacheKey]) {
+            if (blockDataCache[cacheKey] === "loading") {
+                 if (!pendingLoads[cacheKey]) pendingLoads[cacheKey] = [];
+                 pendingLoads[cacheKey].push({x: x, z: z, callback: callback});
+            } else if (blockDataCache[cacheKey] === "error") {
+                callback(null);
+            } else {
+                processBlockData(x, z, cacheKey, callback);
+            }
+        } else {
+            blockDataCache[cacheKey] = "loading";
+            if (!pendingLoads[cacheKey]) pendingLoads[cacheKey] = [];
+            pendingLoads[cacheKey].push({x: x, z: z, callback: callback});
+            
+            var activeLayerKey = Object.keys(layers).find(function(key) {
+                var olLayer = map.getLayers().getArray().find(function(l) { return l.metaLayerKey == key; });
+                return olLayer && olLayer.getVisible();
+            });
+
+            if (!activeLayerKey) activeLayerKey = Object.keys(layers)[0];
+            var activeLayer = layers[activeLayerKey];
+
+            var url = "./" + activeLayer.folder + "/" + zoom + "/" + tx + "/" + tz + ".js";
+
+            var script = document.createElement('script');
+            script.src = url;
+            script.onerror = function() {
+                blockDataCache[cacheKey] = "error";
+                if (pendingLoads[cacheKey]) {
+                    pendingLoads[cacheKey].forEach(function(req) { req.callback(null); });
+                    delete pendingLoads[cacheKey];
+                }
+            };
+            document.body.appendChild(script);
+        }
+      }
+
       map.on("pointermove", function(event) {
         var x = Math.floor(
           (event.coordinate[0] / zoomRatioForMaximumZoom) *
@@ -360,6 +460,13 @@
         );
 
         locationElement.innerText = "X: " + x + " Z: " + z;
+
+        getBlockName(x, z, function(name) {
+            if (name) {
+                if (name.startsWith("minecraft:")) name = name.substring(10);
+                locationElement.innerText = "X: " + x + " Z: " + z + " " + name;
+            }
+        });
       });
 
       if (typeof(playersData) !== "undefined") {
